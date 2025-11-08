@@ -77,7 +77,7 @@ multidict==6.7.0
 multiprocess==0.70.18
 murmurhash==1.0.13
 networkx
-numpy==2.3.4
+numpy
 openai==2.7.1
 orjson==3.11.4
 packaging==25.0
@@ -146,3 +146,4 @@ websockets==15.0.1
 wrapt==2.0.0
 xxhash==3.6.0
 yarl==1.22.0
+
