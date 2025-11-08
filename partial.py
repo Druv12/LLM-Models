@@ -3,8 +3,8 @@ import os
 from dotenv import load_dotenv
 import requests
 from urllib.parse import quote
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
 from datetime import datetime, timedelta
 from PIL import Image
 from PIL.Image import Resampling
@@ -428,10 +428,8 @@ Text to translate:
 
 Translation:"""
 
-        response = GEMINI_CLIENT.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
+        model = GEMINI_CLIENT.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content(prompt)
 
         if response and response.text:
             translated = response.text.strip()
@@ -1230,7 +1228,8 @@ def get_user_stats():
 GEMINI_CLIENT = None
 if GEMINI_API_KEY:
     try:
-        GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
+        genai.configure(api_key=GEMINI_API_KEY)
+        GEMINI_CLIENT = genai
     except Exception as e:
         logging.error(f"Failed to initialize Gemini Client: {e}")
         GEMINI_CLIENT = None
@@ -1499,11 +1498,10 @@ def query_model(prompt, history, session_id_state):
                     types.Content(role=role, parts=[types.Part(text=msg["content"])])
                 )
 
-            response = GEMINI_CLIENT.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=gemini_formatted_messages
-            )
+            model = GEMINI_CLIENT.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content(gemini_formatted_messages)
             answer = response.text
+
         except Exception as e:
             err_str = str(e).lower()
             if any(x in err_str for x in ["quota", "unavailable", "429"]):
@@ -1704,7 +1702,7 @@ def extract_file_content_gemini(file, prompt):
             yield "⏱️ 2s", "Error: Unsupported file type (DOCX/TXT require dedicated parsers)."
             return
 
-        uploaded_file = GEMINI_CLIENT.files.upload(file=file_path)
+        uploaded_file = genai.upload_file(path=file_path)
         elapsed = int(time.time() - start_time)
 
         yield f"⏱️ {elapsed}s", "⏳ **Step 2/3:** Processing file..."
@@ -1720,10 +1718,9 @@ def extract_file_content_gemini(file, prompt):
 
         contents = [uploaded_file, extraction_prompt]
 
-        response = GEMINI_CLIENT.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents
-        )
+        model = GEMINI_CLIENT.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content(contents)
+
 
         elapsed = int(time.time() - start_time)
 
@@ -1744,7 +1741,7 @@ def extract_file_content_gemini(file, prompt):
         if uploaded_file and hasattr(uploaded_file, 'name') and uploaded_file.name:
             try:
                 time.sleep(1)
-                GEMINI_CLIENT.files.delete(name=uploaded_file.name)
+                genai.delete_file(name=uploaded_file.name)
                 logging.info(f"✅ Cleaned up file: {uploaded_file.name}")
             except Exception as cleanup_error:
                 logging.warning(f"File cleanup warning: {cleanup_error}")
@@ -1781,10 +1778,9 @@ Now, based on the user's request above, provide the most helpful and appropriate
     if GEMINI_CLIENT:
         llm_name = "Gemini"
         try:
-            response = GEMINI_CLIENT.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=system_prompt
-            )
+            model = GEMINI_CLIENT.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content(system_prompt)
+
             if response and response.text:
                 answer = response.text
         except Exception as e:
@@ -2128,11 +2124,9 @@ def query_image_model(image, prompt):
             mime_type='image/jpeg'
         )
 
-        contents = [image_part, prompt]
-        response = GEMINI_CLIENT.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents
-        )
+        contents = [resized_image, prompt]  # Gemini accepts PIL Image objects directly
+        model = GEMINI_CLIENT.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content(contents)
 
         result = response.text
 
